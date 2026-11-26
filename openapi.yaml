@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: API Calculadora Científica - Proyecto Integrador
+  description: Contrato de API REST para el monolito organizado en capas (Presentación, Aplicación y Persistencia).
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor local de desarrollo
+
+paths:
+  /calcular:
+    post:
+      summary: Evaluar una expresión matemática
+      description: Valida y calcula una expresión matemática usando mathjs y almacena el resultado en el historial persistente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculoRequest'
+            examples:
+              operacionBasica:
+                summary: Operación aritmética combinada
+                value:
+                  expresion: "2 + 3 * 4"
+              funcionCientifica:
+                summary: Función trigonométrica
+                value:
+                  expresion: "sin(45 deg) + sqrt(16)"
+      responses:
+        '200':
+          description: Cálculo realizado y guardado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculoSuccessResponse'
+              example:
+                exito: true
+                datos:
+                  id: 1732573500000
+                  fecha: "2026-11-25T22:25:00.000Z"
+                  expresion: "2 + 3 * 4"
+                  resultado: 14
+        '400':
+          description: Error de validación, sintaxis inválida o resultado indefinido (ej. división por cero)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                expresionVacia:
+                  summary: Expresión faltante o vacía
+                  value:
+                    exito: false
+                    error: "La expresión matemática es obligatoria."
+                errorSintaxis:
+                  summary: Sintaxis matemática incorrecta
+                  value:
+                    exito: false
+                    error: "Error de sintaxis en la expresión: Unexpected operator * (char 5)"
+                divisionPorCero:
+                  summary: Resultado indefinido o infinito
+                  value:
+                    exito: false
+                    error: "La operación produce un resultado indefinido o infinito (ej. división por cero)."
+
+  /historial:
+    get:
+      summary: Consultar el historial de operaciones realizadas
+      description: Retorna la lista completa de cálculos almacenados en la capa de persistencia ordenados del más reciente al más antiguo.
+      responses:
+        '200':
+          description: Lista de operaciones recuperada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistorialSuccessResponse'
+              example:
+                exito: true
+                datos:
+                  - id: 1732573500000
+                    fecha: "2026-11-25T22:25:00.000Z"
+                    expresion: "2 + 3 * 4"
+                    resultado: 14
+        '500':
+          description: Error interno del servidor al leer el almacenamiento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                exito: false
+                error: "Error interno al consultar el historial."
+
+components:
+  schemas:
+    CalculoRequest:
+      type: object
+      required:
+        - expresion
+      properties:
+        expresion:
+          type: string
+          description: Expresión matemática válida para evaluar.
+          example: "2 + 3 * 4"
+
+    RegistroCalculo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único basado en marca de tiempo.
+        fecha:
+          type: string
+          format: date-time
+          description: Fecha y hora en formato ISO 8601.
+        expresion:
+          type: string
+          description: Expresión evaluada.
+        resultado:
+          oneOf:
+            - type: number
+            - type: string
+          description: Resultado numérico o representación textual de la operación.
+
+    CalculoSuccessResponse:
+      type: object
+      properties:
+        exito:
+          type: boolean
+          example: true
+        datos:
+          $ref: '#/components/schemas/RegistroCalculo'
+
+    HistorialSuccessResponse:
+      type: object
+      properties:
+        exito:
+          type: boolean
+          example: true
+        datos:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegistroCalculo'
+
+    ErrorResponse:
+      type: object
+      properties:
+        exito:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Mensaje descriptivo del error ocurrido.
